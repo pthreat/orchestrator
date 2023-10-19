@@ -1,0 +1,17 @@
+#!/usr/bin/env php
+<?php
+
+$output = getcwd().\DIRECTORY_SEPARATOR.'orchestrator.phar';
+
+if(file_exists($output)){
+	unlink($output);
+	echo "Removed old phar ...\n";
+}
+
+$phar = new Phar($output);
+var_dump(($phar->buildFromDirectory(__DIR__, '/\.php|\.xsd$/')));
+$phar->startBuffering();
+$phar->setStub("#!/usr/bin/env php\n". $phar->createDefaultStub('console.php'));
+$phar->stopBuffering();
+
+chmod($output, 0755);
