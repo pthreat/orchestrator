@@ -191,7 +191,14 @@ readonly class Orchestrator
                 ->exclude($this->config->getCompilerPassDirectories()->getExcluded())
                 ->filter(function (\SplFileInfo $file) : bool {
                     foreach($this->config->getCompilerPassFiles()->getPatterns() as $pattern){
-                        if(str_starts_with('/', $pattern) && preg_match($pattern, $file->getFilename())){
+
+                        $isRegex = str_starts_with($pattern, '/');
+
+                        if($isRegex && preg_match($pattern, $file->getFilename())){
+                            return true;
+                        }
+
+                        if(false === $isRegex && $pattern === $file->getFilename()){
                             return true;
                         }
                     }
