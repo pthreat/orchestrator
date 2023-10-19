@@ -27,5 +27,5 @@
     "bin": [
         "bin/orchestrator"
     ],
-    "minimum-stability": "dev"
+    "minimum-stability": "stable"
 }
