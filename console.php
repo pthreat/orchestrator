@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+use Pthreat\Orchestrator\Console\Command\LoadContainer;
 use Symfony\Component\Console\Application;
 use Pthreat\Orchestrator\Console\Command\BuildContainer;
 use Pthreat\Orchestrator\Console\Command\PrintFiles;
@@ -37,6 +38,7 @@ try {
     $app->addCommands([
             new InitProject(),
             new BuildContainer(),
+            new LoadContainer(),
             new PrintFiles(),
             new WhereIsContainerDefinition(),
             new WhereIsTaggedDefinition()

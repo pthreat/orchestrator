@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Pthreat\Orchestrator\Config;
 
-use Pthreat\Orchestrator\Config\Entity\ContainerConfig;
 use Pthreat\Orchestrator\Config\Exception\ConfigException;
 use Pthreat\Orchestrator\Utility\Fs;
 
@@ -20,9 +19,11 @@ readonly class OrchestratorConfig
     private const DEFAULT_COMPILER_PASSES = ['/^.*CompilerPass.php$/'];
 
     public function __construct(
+        private Entity\ContainerWriteConfig $writeConfig,
         private Entity\ContainerConfig $containerConfig,
         private Entity\DirectoryConfig $environmentDirectories,
         private Entity\FilesConfig     $environmentFiles,
+        private Entity\EnvWriteConfig  $envWriteConfig,
         private Entity\DirectoryConfig $serviceDirectories,
         private Entity\FilesConfig     $serviceFiles,
         private Entity\DirectoryConfig $compilerPassDirectories,
@@ -42,10 +43,14 @@ readonly class OrchestratorConfig
         }
 
         $config = [
-            'container' => new Entity\ContainerConfig(self::CONTAINER_NAMESPACE, self::CONTAINER_CLASS),
+            'container' => [
+                'config' => new Entity\ContainerConfig(self::CONTAINER_NAMESPACE, self::CONTAINER_CLASS),
+                'write' => new Entity\ContainerWriteConfig('cache', 'container.php')
+            ],
             'environment' => [
                 'directories' => new Entity\DirectoryConfig(['.'], self::DEFAULT_EXCLUDED_DIRECTORIES, false),
-                'files' => new Entity\FilesConfig(self::DEFAULT_ENVIRONMENT_FILES, [], false)
+                'files' => new Entity\FilesConfig(self::DEFAULT_ENVIRONMENT_FILES, [], false),
+                'write' => new Entity\EnvWriteConfig('cache', '.env')
             ],
             'services' => [
                 'directories' => new Entity\DirectoryConfig(['.'], self::DEFAULT_EXCLUDED_DIRECTORIES, false),
@@ -61,6 +66,16 @@ readonly class OrchestratorConfig
         file_put_contents($output, json_encode($config, \JSON_PRETTY_PRINT));
 
         return $output;
+    }
+
+    public function getEnvWriteConfig() : Entity\EnvWriteConfig
+    {
+        return $this->envWriteConfig;
+    }
+
+    public function getContainerWriteConfig() : Entity\ContainerWriteConfig
+    {
+        return $this->writeConfig;
     }
 
     public function getServiceFiles() : Entity\FilesConfig
@@ -132,7 +147,6 @@ readonly class OrchestratorConfig
         }
     }
 
-
     /**
      * @throws ConfigException
      */
@@ -140,9 +154,11 @@ readonly class OrchestratorConfig
     {
         try {
             return new self(
-                ContainerConfig::fromArray($config['container']),
+                Entity\ContainerWriteConfig::fromArray($config['container']['write']),
+                Entity\ContainerConfig::fromArray($config['container']['config']),
                 Entity\DirectoryConfig::fromArray($config['environment']['directories']),
                 Entity\FilesConfig::fromArray($config['environment']['files']),
+                Entity\EnvWriteConfig::fromArray($config['environment']['write']),
                 Entity\DirectoryConfig::fromArray($config['services']['directories']),
                 Entity\FilesConfig::fromArray($config['services']['files']),
                 Entity\DirectoryConfig::fromArray($config['passes']['directories']),

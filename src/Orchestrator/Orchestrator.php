@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Pthreat\Orchestrator\Orchestrator;
 
+use Psr\Container\ContainerInterface;
 use Pthreat\Orchestrator\Config;
+use Pthreat\Orchestrator\Config\Exception\ConfigException;
 use Pthreat\Orchestrator\Config\OrchestratorConfig;
 use Pthreat\Orchestrator\Orchestrator\Entity\CompileResult;
 use Pthreat\Orchestrator\Orchestrator\Exception\OrchestratorCompilerPassReadException;
 use Pthreat\Orchestrator\Orchestrator\Exception\OrchestratorEnvReadException;
 use Pthreat\Orchestrator\Orchestrator\Exception\OrchestratorEnvWriteException;
+use Pthreat\Orchestrator\Orchestrator\Exception\OrchestratorException;
 use Pthreat\Orchestrator\Orchestrator\Exception\OrchestratorReadException;
 use Pthreat\Orchestrator\Orchestrator\Exception\OrchestratorServiceReadException;
 use Pthreat\Orchestrator\Orchestrator\Exception\OrchestratorWriteException;
@@ -42,6 +45,38 @@ readonly class Orchestrator
     }
 
     /**
+     * @throws ConfigException
+     * @throws OrchestratorException
+     */
+    public static function load(string|null $file=null) : ContainerInterface
+    {
+        $orchestrator = self::factory($file);
+        $outputDirectory = Fs::mkPath(getcwd(), trim($orchestrator->config->getContainerWriteConfig()->getDirectory(), \DIRECTORY_SEPARATOR));
+        $containerFile = Fs::mkPath($outputDirectory, $orchestrator->config->getContainerWriteConfig()->getFile());
+        $orchestrator->loadEnvFromCacheFile(Fs::mkPath($outputDirectory, 'env-cache'));
+
+        require $containerFile;
+
+        $containerClass = sprintf(
+            '%s\\%s',
+            $orchestrator->config->getContainerConfig()->getNamespace(),
+            $orchestrator->config->getContainerConfig()->getClass()
+        );
+
+        $containerClass = preg_replace('#\\\\#', '\\', $containerClass);
+
+        if (!class_exists($containerClass)) {
+            $msg = sprintf(
+                'FATAL: Container class %s could not be found',
+                $containerClass
+            );
+            throw new Exception\OrchestratorException($msg);
+        }
+
+        return new $containerClass();
+    }
+
+    /**
      * @throws OrchestratorEnvWriteException
      * @throws OrchestratorEnvReadException
      * @throws OrchestratorWriteException
@@ -49,19 +84,19 @@ readonly class Orchestrator
      * @throws OrchestratorCompilerPassReadException
      * @throws OrchestratorReadException
      */
-    public function compile(string $outputDirectory, string|null $envFile = null): Entity\CompileResult
+    public function compile(string|null $envFile = null): Entity\CompileResult
     {
-        $outputDirectory = realpath($outputDirectory);
-        $outputFile = Fs::mkPath($outputDirectory, 'container.php');
-        $newOutputFile = Fs::mkPath($outputDirectory, 'container-new.php');
+        $outputDirectory = Fs::mkPath(getcwd(), trim($this->config->getContainerWriteConfig()->getDirectory(), \DIRECTORY_SEPARATOR));
+
+        $outputFile = Fs::mkPath($outputDirectory, $this->config->getContainerWriteConfig()->getFile());
+
+        $newOutputFile = Fs::mkPath(
+            $outputDirectory,
+            sprintf('%s.new', $this->config->getContainerWriteConfig()->getFile())
+        );
 
         if (!is_dir($outputDirectory) && false === @mkdir($outputDirectory, 0755) && !is_dir($outputDirectory)) {
-            throw new OrchestratorWriteException("Could not create container output directory $outputDirectory");
-        }
-
-        if (null !== $envFile && file_exists($envFile)) {
-            $envLoader = new Dotenv(true);
-            $envLoader->load($envFile);
+            throw new OrchestratorWriteException("Could not create container output directory $outputDirectory, check file permissions.");
         }
 
         $containerFileExists = file_exists($newOutputFile);
@@ -99,9 +134,7 @@ readonly class Orchestrator
         $this->generateEnvCache($envCacheFile);
         $this->loadEnvFromCacheFile($envCacheFile);
 
-        $outputFile = realpath($outputFile);
-
-        if (false === $outputFile || false === file_exists($outputFile)) {
+        if (false === file_exists($outputFile)) {
             $msg = "FATAL ERROR: Could not find container file \"$outputFile\"!";
             throw new OrchestratorWriteException($msg);
         }
@@ -313,7 +346,6 @@ readonly class Orchestrator
 
         if (true === $single) {
             $loader = new Dotenv(true);
-
             $loader->load($file);
 
             return true;

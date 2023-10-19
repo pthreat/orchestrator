@@ -3,11 +3,6 @@
     "description": "Symfony services.xml builder",
     "type": "library",
     "license": "BSD",
-    "autoload": {
-        "psr-4": {
-            "Pthreat\\Orchestrator\\": "src/"
-        }
-    },
     "authors": [
         {
             "name": "Federico Stange",
@@ -24,7 +19,11 @@
         "ext-fileinfo": "*",
         "ext-dom": "*"
     },
-
+    "autoload": {
+        "psr-4": {
+            "Pthreat\\Orchestrator\\": "src/"
+        }
+    },
     "bin": [
         "bin/orchestrator"
     ]
