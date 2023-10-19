@@ -2,7 +2,7 @@
     "name": "pthreat/orchestrator",
     "description": "Symfony services.xml builder",
     "type": "library",
-    "license": "BSD",
+    "license": "BSD-3-Clause",
     "authors": [
         {
             "name": "Federico Stange",
