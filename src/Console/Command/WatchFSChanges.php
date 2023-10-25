@@ -9,14 +9,15 @@ use Pthreat\Orchestrator\Exception\Helper\ExceptionCollection;
 use Pthreat\Orchestrator\Orchestrator\Exception\OrchestratorException;
 use Pthreat\Orchestrator\Orchestrator\Exception\OrchestratorServiceReadException;
 use Pthreat\Orchestrator\Orchestrator\Orchestrator;
+use Pthreat\Orchestrator\Orchestrator\Watcher\OrchestratorWatcher;
 use Pthreat\Orchestrator\Utility\Fs;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class BuildContainer extends Command
+class WatchFSChanges extends Command
 {
-    private const NAME = 'orchestrator:build';
+    private const NAME = 'orchestrator:watch';
 
     public function __construct()
     {
@@ -25,28 +26,16 @@ class BuildContainer extends Command
 
     public function configure() : void
     {
-        $this->setDescription('Builds container');
-
+        $this->setDescription('Watches file system changes');
     }
 
     public function execute(InputInterface $input, OutputInterface $output): int
     {
         try {
-            $result = Orchestrator::factory()
-                ->compile();
-
-            if ($input->getOption('verbose')) {
-                OrchestratorPrintHelper::printFiles($output, $result->getBuildResult());
-            }
-
-            OrchestratorPrintHelper::printSummary($output, $result->getBuildResult(), $result->getTime());
-
+            OrchestratorWatcher::factory(Orchestrator::factory())->watch($input, $output);
             return self::SUCCESS;
-        }catch(OrchestratorServiceReadException $e){
-            $output->writeln('<error>Read error while trying to find service files</error>');
-            $output->writeln(ExceptionCollection::fromException($e));
         }catch(OrchestratorException $e){
-            $output->writeln("<error>Failed to build container: {$e->getMessage()}</error>");
+            $output->writeln("<error>Failed to watch file changes: {$e->getMessage()}</error>");
             $output->writeln(ExceptionCollection::fromException($e));
             return self::FAILURE;
         }

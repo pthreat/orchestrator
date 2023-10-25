@@ -35,12 +35,11 @@ readonly class Orchestrator
     /**
      * @throws Config\Exception\ConfigException
      */
-    public static function factory(string|null $file=null) : Orchestrator
+    public static function factory(string|null $directory=null) : Orchestrator
     {
+        $directory = $directory ?? getcwd();
         return new self(Config\OrchestratorConfig::fromJSONFile(
-            Fs::mkPath(
-                $file ?? getcwd(), OrchestratorConfig::CONFIG_FILE
-            )
+            Fs::mkPath($directory, OrchestratorConfig::CONFIG_FILE)
         ));
     }
 
@@ -48,10 +47,12 @@ readonly class Orchestrator
      * @throws ConfigException
      * @throws OrchestratorException
      */
-    public static function load(string|null $file=null) : ContainerInterface
+    public static function load(string|null $directory=null) : ContainerInterface
     {
-        $orchestrator = self::factory($file);
-        $outputDirectory = Fs::mkPath(getcwd(), trim($orchestrator->config->getContainerWriteConfig()->getDirectory(), \DIRECTORY_SEPARATOR));
+        $directory = $directory ?? getcwd();
+        $orchestrator = self::factory($directory);
+
+        $outputDirectory = Fs::mkPath($directory, trim($orchestrator->config->getContainerWriteConfig()->getDirectory(), \DIRECTORY_SEPARATOR));
         $containerFile = Fs::mkPath($outputDirectory, $orchestrator->config->getContainerWriteConfig()->getFile());
         $orchestrator->loadEnvFromCacheFile(Fs::mkPath($outputDirectory, 'env-cache'));
 
@@ -84,8 +85,10 @@ readonly class Orchestrator
      * @throws OrchestratorCompilerPassReadException
      * @throws OrchestratorReadException
      */
-    public function compile(string|null $envFile = null): Entity\CompileResult
+    public function compile(): Entity\CompileResult
     {
+        $start = microtime(true);
+
         $outputDirectory = Fs::mkPath(getcwd(), trim($this->config->getContainerWriteConfig()->getDirectory(), \DIRECTORY_SEPARATOR));
 
         $outputFile = Fs::mkPath($outputDirectory, $this->config->getContainerWriteConfig()->getFile());
@@ -139,7 +142,7 @@ readonly class Orchestrator
             throw new OrchestratorWriteException($msg);
         }
 
-        return new CompileResult($build);
+        return new CompileResult($build, microtime(true) - $start);
     }
 
     /**
@@ -163,25 +166,32 @@ readonly class Orchestrator
 
         /**
          * Find all files matching "^.*CompilerPass.php$" and add them to the container builder.
-         */
+
         $compilerPasses = $this->findCompilerPasses();
 
-        foreach ($compilerPasses as $pass) {
+        static $loadedPasses = [];
 
-            require $pass->getRealPath();
+        foreach ($compilerPasses as $pass) {
+            break;
+            $loadedPasses[] = $pass->getRealPath();
+
+            if(false === in_array($pass->getRealPath(), $loadedPasses, true)){
+                require $pass->getRealPath();
+            }
 
             $class = get_declared_classes();
             $class = $class[count($class) - 1];
 
             $builder->addCompilerPass(new $class());
         }
+         */
 
         $builder->compile(false);
 
         return new Entity\BuildResult(
             $builder,
             iterator_to_array($files, false),
-            iterator_to_array($compilerPasses, false)
+            iterator_to_array($this->findCompilerPasses(), false)
         );
     }
 
@@ -209,6 +219,11 @@ readonly class Orchestrator
         }catch(AccessDeniedException $e){
             throw new OrchestratorServiceReadException('Failed to find service files', 0, $e);
         }
+    }
+
+    public function getConfig() : Config\OrchestratorConfig
+    {
+        return $this->config;
     }
 
     /**

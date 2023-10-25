@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pthreat\Orchestrator\Config;
 
 use Pthreat\Orchestrator\Config\Exception\ConfigException;
+use Pthreat\Orchestrator\Orchestrator\Watcher\Config\OrchestratorWatcherConfig;
 use Pthreat\Orchestrator\Utility\Fs;
 
 readonly class OrchestratorConfig
@@ -18,23 +19,24 @@ readonly class OrchestratorConfig
     private const DEFAULT_ENVIRONMENT_FILES = ['env'];
     private const DEFAULT_COMPILER_PASSES = ['/^.*CompilerPass.php$/'];
 
-    public function __construct(
+    private function __construct(
         private Entity\ContainerWriteConfig $writeConfig,
-        private Entity\ContainerConfig $containerConfig,
-        private Entity\DirectoryConfig $environmentDirectories,
-        private Entity\FilesConfig     $environmentFiles,
-        private Entity\EnvWriteConfig  $envWriteConfig,
-        private Entity\DirectoryConfig $serviceDirectories,
-        private Entity\FilesConfig     $serviceFiles,
-        private Entity\DirectoryConfig $compilerPassDirectories,
-        private Entity\FilesConfig     $compilerPassFiles
+        private Entity\ContainerConfig      $containerConfig,
+        private Entity\DirectoryConfig      $environmentDirectories,
+        private Entity\FilesConfig          $environmentFiles,
+        private Entity\EnvWriteConfig       $envWriteConfig,
+        private Entity\DirectoryConfig      $serviceDirectories,
+        private Entity\FilesConfig          $serviceFiles,
+        private Entity\DirectoryConfig      $compilerPassDirectories,
+        private Entity\FilesConfig          $compilerPassFiles,
+        private OrchestratorWatcherConfig   $watcherConfig
     )
     {}
 
     /**
      * @throws Exception\ConfigException
      */
-    public static function init(string $directory) : string
+    public static function init(string $directory) : Entity\InitResult
     {
         $directory = realpath($directory);
 
@@ -59,13 +61,17 @@ readonly class OrchestratorConfig
             'passes' => [
                 'directories' => new Entity\DirectoryConfig(['.'], self::DEFAULT_EXCLUDED_DIRECTORIES, false),
                 'files' => new Entity\FilesConfig(self::DEFAULT_COMPILER_PASSES, [], false)
-            ]
+            ],
+            'watcher' => OrchestratorWatcherConfig::defaults()
         ];
 
         $output = Fs::mkPath($directory, self::CONFIG_FILE);
         file_put_contents($output, json_encode($config, \JSON_PRETTY_PRINT));
 
-        return $output;
+        return new Entity\InitResult(
+            $output,
+            self::fromJSONFile($output)
+        );
     }
 
     public function getEnvWriteConfig() : Entity\EnvWriteConfig
@@ -147,6 +153,11 @@ readonly class OrchestratorConfig
         }
     }
 
+    public function getWatcherConfig() : OrchestratorWatcherConfig
+    {
+        return $this->watcherConfig;
+    }
+
     /**
      * @throws ConfigException
      */
@@ -163,6 +174,7 @@ readonly class OrchestratorConfig
                 Entity\FilesConfig::fromArray($config['services']['files']),
                 Entity\DirectoryConfig::fromArray($config['passes']['directories']),
                 Entity\FilesConfig::fromArray($config['passes']['files']),
+                OrchestratorWatcherConfig::fromArray($config['watcher'])
             );
         }catch(\Throwable $e){
             throw new Exception\ConfigException('Malformed configuration file', 0, $e);

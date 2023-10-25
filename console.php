@@ -4,6 +4,7 @@
 declare(strict_types=1);
 
 use Pthreat\Orchestrator\Console\Command\LoadContainer;
+use Pthreat\Orchestrator\Console\Command\WatchFSChanges;
 use Symfony\Component\Console\Application;
 use Pthreat\Orchestrator\Console\Command\BuildContainer;
 use Pthreat\Orchestrator\Console\Command\PrintFiles;
@@ -41,7 +42,8 @@ try {
             new LoadContainer(),
             new PrintFiles(),
             new WhereIsContainerDefinition(),
-            new WhereIsTaggedDefinition()
+            new WhereIsTaggedDefinition(),
+            new WatchFSChanges()
     ]);
 
     $app->run();

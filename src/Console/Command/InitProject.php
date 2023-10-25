@@ -48,7 +48,12 @@ class InitProject extends Command
 
         try {
             $output->writeln('<info>Initializing project ...</info>');
-            $output->writeln(sprintf('<info>Saved configuration in: %s</info>', OrchestratorConfig::init($projectDir)));
+            $output->writeln(
+                sprintf(
+                    '<info>Saved configuration in: %s</info>',
+                    OrchestratorConfig::init($projectDir)->getFile()
+                )
+            );
 
             return self::SUCCESS;
         }catch(OrchestratorException $e){

@@ -10,14 +10,15 @@
         }
     ],
     "require": {
+        "ext-fileinfo": "*",
+        "ext-dom": "*",
+        "ext-inotify": "*",
         "symfony/console": "^5.4",
         "symfony/dependency-injection": "^5.4",
         "symfony/var-dumper": "^5.4",
         "symfony/dotenv": "^5.4",
         "symfony/finder": "^5.4",
-        "symfony/config": "^5.4",
-        "ext-fileinfo": "*",
-        "ext-dom": "*"
+        "symfony/config": "^5.4"
     },
     "autoload": {
         "psr-4": {

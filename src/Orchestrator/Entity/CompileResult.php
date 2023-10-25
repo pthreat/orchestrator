@@ -8,12 +8,18 @@ readonly class CompileResult
 {
 
     public function __construct(
-        private BuildResult $buildResult
+        private BuildResult $buildResult,
+        private float $time
     ){}
 
     public function getBuildResult() : BuildResult
     {
         return $this->buildResult;
+    }
+
+    public function getTime() : float
+    {
+        return $this->time;
     }
 
 }
